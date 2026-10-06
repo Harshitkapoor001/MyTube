@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Uploaded temporary files
+public/temp/
+
+*.log
+.DS_Store
