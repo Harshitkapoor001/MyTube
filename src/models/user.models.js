@@ -1,4 +1,4 @@
-import { mongoose , Schema } from "mongoose"
+import mongoose, { Schema } from "mongoose"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
 
@@ -26,9 +26,8 @@ const userSchema=new Schema({
         index:true
     },
     avatar:{
-        type:String,//clodnary url
-        required:true,
-        publicId:String
+        type:String, // cloudinary url
+        required:true
     },
     coverimage:{
         type:String
@@ -47,15 +46,17 @@ const userSchema=new Schema({
 },{timestamps:true})
 
 
-
+// Hash the password before saving — only runs if the password field was actually modified
 userSchema.pre("save",async function(next){
-    if(!this.isModified("password"))return;
+    if(!this.isModified("password")) return next();
     this.password = await bcrypt.hash(this.password,10)
+    next()
 })
 
 userSchema.methods.isPasswordCorrect= async function(password) {
     return await bcrypt.compare(password,this.password)
-}    
+}
+
 userSchema.methods.generateAccessToken= function(){
     return jwt.sign(
         {
@@ -70,6 +71,7 @@ userSchema.methods.generateAccessToken= function(){
         }
     )
 }
+
 userSchema.methods.generateRefreshTokens=function(){
     return jwt.sign(
         {

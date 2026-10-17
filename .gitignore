@@ -11,3 +11,6 @@ public/temp/
 
 *.log
 .DS_Store
+
+# Documentation
+docs/

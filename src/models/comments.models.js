@@ -1,6 +1,5 @@
 import mongoose,{Schema} from "mongoose"
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2"
-import { Video } from "./video.models.js"
 
 
 const commentSchema = new Schema({
@@ -18,6 +17,7 @@ const commentSchema = new Schema({
     }
 },{timestamps:true})
 
-videoSchema.plugin(mongooseAggregatePaginate)
+// Register the pagination plugin so aggregation queries on this model support .paginate()
+commentSchema.plugin(mongooseAggregatePaginate)
 
 export const Comments = mongoose.model("Comments",commentSchema)
