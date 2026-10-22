@@ -3,10 +3,13 @@ import dotenv from "dotenv";
 import { DB_NAME } from "./constants.js";
 import connectDB from "./db/db.js"
 import {app} from "./app.js"
+import { validateEnv } from "./utils/validateEnv.js";
 
 dotenv.config({
     path:"./.env"
 })
+
+validateEnv()
 
 connectDB()
 .then(()=>{

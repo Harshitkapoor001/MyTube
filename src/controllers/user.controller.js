@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiErrors } from "../utils/ApiErrors.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary } from "../utils/cluodinary.js"
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
@@ -23,58 +23,76 @@ const registerUser=asyncHandler( async (req,res)=>{
     console.log("email: ",email)
 
     if (
-        [email,username,password,fullname].some((feilds) => 
-        feilds?.trim()==="")
+        !email || !username || !password || !fullname ||
+        [email, username, password, fullname].some((field) => 
+            typeof field !== "string" || field.trim() === ""
+        )
     ) {
-        throw new ApiErrors(400,"All feilds are required")
-    }
-    
-    //console.log("Files:",req.files)
-    //console.log("Body:",req.body)
-    const registeredUser=await User.findOne({
-        $or:[{ username },{ email }]
-    })
-    if (registeredUser) {
-        throw new ApiErrors(409,"User is already registered")
+        throw new ApiErrors(400, "All fields are required")
     }
 
-    const avatarLocalPath=req.files?.avatar?.[0]?.path
-    const coverimageLocalPath=req.files?.coverimage?.[0]?.path
+    //console.log("Files:",req.files)
+    //console.log("Body:",req.body)
+    const trimmedEmail = email.trim().toLowerCase()
+    const trimmedUsername = username.trim().toLowerCase()
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(trimmedEmail)) {
+        throw new ApiErrors(400, "Invalid email address format")
+    }
+
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/
+    if (!usernameRegex.test(trimmedUsername)) {
+        throw new ApiErrors(400, "Username must be 3-30 characters long and can only contain letters, numbers, and underscores")
+    }
+
+    if (password.length < 6) {
+        throw new ApiErrors(400, "Password must be at least 6 characters long")
+    }
+
+    const registeredUser = await User.findOne({
+        $or: [{ username: trimmedUsername }, { email: trimmedEmail }]
+    })
+    if (registeredUser) {
+        throw new ApiErrors(409, "User is already registered with this username or email")
+    }
+
+    const avatarLocalPath = req.files?.avatar?.[0]?.path
+    const coverimageLocalPath = req.files?.coverimage?.[0]?.path
     //console.log("Avatar:",avatarLocalPath)
     //console.log("Coverimage:",coverimageLocalPath)
 
     if (!avatarLocalPath) {
-        throw new ApiErrors(400,"Avatar file is required")
+        throw new ApiErrors(400, "Avatar file is required")
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverimage = await uploadOnCloudinary(coverimageLocalPath)
-    
 
     if (!avatar) {
-        throw new ApiErrors(400,"Avatar file is required")
+        throw new ApiErrors(400, "Avatar file is required")
     }
 
     const user = await User.create({
-        email,
-        fullname,
+        email: trimmedEmail,
+        fullname: fullname.trim(),
         avatar: avatar.url,
         coverimage: coverimage?.url || "",
-        username:username.toLowerCase(),
+        username: trimmedUsername,
         password
     })
     const createdUser = await User.findById(user._id).select(
         "-password -refreshTokens"
     )
     if (!createdUser) {
-        throw new ApiErrors(500,"Something went wrong while registering User")
+        throw new ApiErrors(500, "Something went wrong while registering User")
     }
 
     return res.status(201).json(
-        new ApiResponse(201,createdUser,"User Registered Successfully")
+        new ApiResponse(201, createdUser, "User Registered Successfully")
     )
 
-} )
+})
 
 // Generates both access and refresh tokens, saves the refresh token to the DB, and returns both
 const generateAccessAndRefreshTokens = async(userId) =>{
@@ -99,12 +117,24 @@ const loginUser= asyncHandler(async(req,res) =>{
     // passwaord check
     // if checked then generate access tokens and refresh tokens 
     // send the tokens in the form of secure cookies 
-    const {username,email,password} = req.body
+    const {username, email, password} = req.body
     if (!username && !email) {
-        throw new ApiErrors(400,"Username or Email is required")
+        throw new ApiErrors(400, "Username or Email is required")
     }
+    if (!password || typeof password !== "string" || password.trim() === "") {
+        throw new ApiErrors(400, "Password is required")
+    }
+
+    const searchCriteria = []
+    if (username && typeof username === "string" && username.trim() !== "") {
+        searchCriteria.push({ username: username.trim().toLowerCase() })
+    }
+    if (email && typeof email === "string" && email.trim() !== "") {
+        searchCriteria.push({ email: email.trim().toLowerCase() })
+    }
+
     const user = await User.findOne({
-        $or:[{username},{email}]
+        $or: searchCriteria
     })
 
     if(!user){
@@ -216,17 +246,41 @@ const refreshAccessToken = asyncHandler(async (req,res) =>{
 
 const changeCurrentPassword = asyncHandler(async(req,res) =>{
     const {oldPassword , newPassword} = req.body
+
+    if (!oldPassword || !newPassword) {
+        throw new ApiErrors(400, "Both old password and new password are required")
+    }
+    if (typeof newPassword !== "string" || newPassword.length < 6) {
+        throw new ApiErrors(400, "New password must be at least 6 characters long")
+    }
+    if (oldPassword === newPassword) {
+        throw new ApiErrors(400, "New password must be different from the old password")
+    }
+
     const user = await User.findById(req.user?._id)
+    if (!user) {
+        throw new ApiErrors(404, "User not found")
+    }
+
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
     if (!isPasswordCorrect) {
         throw new ApiErrors(400,"Invalid Password")
     }
+
     user.password = newPassword
+    user.refreshTokens = undefined
     await user.save({validateBeforeSave:false})
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
 
     return res
     .status(200)
-    .json(new ApiResponse(200,{},"Password changed successfully"))
+    .clearCookie("AccessToken", options)
+    .clearCookie("RefreshToken", options)
+    .json(new ApiResponse(200,{},"Password changed successfully. Please log in again."))
 })
 
 const getCurrentUser = asyncHandler(async(req,res) =>{
@@ -237,23 +291,50 @@ const getCurrentUser = asyncHandler(async(req,res) =>{
 
 const updateAccountDetails = asyncHandler(async(req,res) =>{
     const {fullname , email} = req.body
-    if (!(fullname || email)) {
-        throw new ApiErrors(400,"All the feilds are required")
+    if (!fullname && !email) {
+        throw new ApiErrors(400, "At least one field (fullname or email) is required")
     }
+
+    const updateFields = {}
+
+    if (fullname !== undefined) {
+        if (typeof fullname !== "string" || fullname.trim() === "") {
+            throw new ApiErrors(400, "Fullname cannot be empty")
+        }
+        updateFields.fullname = fullname.trim()
+    }
+
+    if (email !== undefined) {
+        if (typeof email !== "string" || email.trim() === "") {
+            throw new ApiErrors(400, "Email cannot be empty")
+        }
+        const trimmedEmail = email.trim().toLowerCase()
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(trimmedEmail)) {
+            throw new ApiErrors(400, "Invalid email address format")
+        }
+
+        const existingEmailUser = await User.findOne({
+            email: trimmedEmail,
+            _id: { $ne: req.user?._id }
+        })
+        if (existingEmailUser) {
+            throw new ApiErrors(409, "Email is already registered by another account")
+        }
+        updateFields.email = trimmedEmail
+    }
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
-            $set : {
-                fullname,
-                email
-            }
+            $set : updateFields
         },
         {new : true}
-    ).select("-password")
+    ).select("-password -refreshTokens")
 
     return res
     .status(200)
-    .json(new ApiResponse(200,{user},"User details updated successfully"))
+    .json(new ApiResponse(200, { user }, "User details updated successfully"))
 })
 
 const updateAvatar = asyncHandler(async(req,res) =>{
