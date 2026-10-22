@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
 import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
+import { Video } from "../models/video.models.js";
 
 const registerUser=asyncHandler( async (req,res)=>{
      
@@ -359,7 +360,7 @@ const updateAvatar = asyncHandler(async(req,res) =>{
             }
         },
         {new:true}
-    ).select("-password")
+    ).select("-password -refreshTokens")
 
     // Delete the old avatar from Cloudinary after the DB is successfully updated
     if(oldAvatarUrl){
@@ -393,7 +394,7 @@ const updateCoverImage = asyncHandler(async(req,res) =>{
             }
         },
         {new:true}
-    ).select("-password")
+    ).select("-password -refreshTokens")
 
     // Delete the old cover image from Cloudinary after the DB is successfully updated
     if(oldCoverImageUrl){
@@ -403,6 +404,29 @@ const updateCoverImage = asyncHandler(async(req,res) =>{
     return res
     .status(200)
     .json(new ApiResponse(200,user,"CoverImage updated successfully"))
+})
+
+const removeCoverImage = asyncHandler(async(req,res) =>{
+    const oldUser = await User.findById(req.user?._id)
+    const oldCoverImageUrl = oldUser?.coverimage
+
+    if(oldCoverImageUrl){
+        await deleteFromCloudinary(oldCoverImageUrl)
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                coverimage:""
+            }
+        },
+        {new:true}
+    ).select("-password -refreshTokens")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,user,"Cover image removed successfully"))
 })
 
 
@@ -447,7 +471,7 @@ const getUserChannelProfile = asyncHandler(async(req,res) =>{
                 isSubscribed:{
                     $cond:{
                         // Check if the currently logged-in user is in the subscribers list
-                        if:{$in:[req.user?._id,"$subscribers.subscriber"]},
+                        if:{$in:[req.user?._id ? new mongoose.Types.ObjectId(req.user._id) : null,"$subscribers.subscriber"]},
                         then : true,
                         else : false
                     }
@@ -534,7 +558,78 @@ const getUserWatchHistory = asyncHandler(async(req,res) =>{
     )
 })
 
+const addVideoToWatchHistory = asyncHandler(async(req,res) =>{
+    const {videoId} = req.params
+    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+        throw new ApiErrors(400,"Invalid video ID")
+    }
 
+    const video = await Video.findById(videoId)
+    if (!video) {
+        throw new ApiErrors(404,"Video not found")
+    }
+
+    // Pull videoId first to prevent duplicate entries and move it to the latest position
+    await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $pull:{
+                watchHistory: new mongoose.Types.ObjectId(videoId)
+            }
+        }
+    )
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $push:{
+                watchHistory: new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        {new:true}
+    ).select("-password -refreshTokens")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,user.watchHistory,"Video added to watch history"))
+})
+
+const removeVideoFromWatchHistory = asyncHandler(async(req,res) =>{
+    const {videoId} = req.params
+    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+        throw new ApiErrors(400,"Invalid video ID")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $pull:{
+                watchHistory: new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        {new:true}
+    ).select("-password -refreshTokens")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,user.watchHistory,"Video removed from watch history"))
+})
+
+const clearWatchHistory = asyncHandler(async(req,res) =>{
+    await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                watchHistory: []
+            }
+        },
+        {new:true}
+    )
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,[],"Watch history cleared successfully"))
+})
 
 export {
     registerUser,
@@ -546,6 +641,10 @@ export {
     updateAccountDetails,
     updateAvatar,
     updateCoverImage,
+    removeCoverImage,
     getUserChannelProfile,
-    getUserWatchHistory
+    getUserWatchHistory,
+    addVideoToWatchHistory,
+    removeVideoFromWatchHistory,
+    clearWatchHistory
 }

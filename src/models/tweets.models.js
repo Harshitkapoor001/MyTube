@@ -1,4 +1,4 @@
-import {mongoose , Schema} from "mongoose"
+import mongoose, {Schema} from "mongoose"
 import { User } from "./user.models.js"
 
 const tweetSchema = new Schema({

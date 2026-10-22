@@ -1,4 +1,4 @@
-import {mongoose , Schema} from "mongoose"
+import mongoose, {Schema} from "mongoose"
 import {Video} from "./video.models.js"
 import { User } from "./user.models.js"
 

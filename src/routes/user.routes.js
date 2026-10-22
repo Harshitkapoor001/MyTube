@@ -1,5 +1,5 @@
 import {Router} from "express"
-import { registerUser , loginUser, logoutUser , refreshAccessToken, changeCurrentPassword, getUserChannelProfile, getCurrentUser, updateAccountDetails, updateAvatar, updateCoverImage, getUserWatchHistory } from "../controllers/user.controller.js"
+import { registerUser , loginUser, logoutUser , refreshAccessToken, changeCurrentPassword, getUserChannelProfile, getCurrentUser, updateAccountDetails, updateAvatar, updateCoverImage, removeCoverImage, getUserWatchHistory, addVideoToWatchHistory, removeVideoFromWatchHistory, clearWatchHistory } from "../controllers/user.controller.js"
 import { upload } from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
@@ -31,7 +31,11 @@ router.route("/current_user").get(verifyJWT, getCurrentUser)
 router.route("/update_details").patch(verifyJWT , updateAccountDetails)
 router.route("/avatar").patch(verifyJWT , upload.single("avatar"), updateAvatar)
 router.route("/coverimage").patch(verifyJWT , upload.single("coverimage"), updateCoverImage)
+router.route("/coverimage").delete(verifyJWT , removeCoverImage)
 router.route("/c/:username").get(verifyJWT , getUserChannelProfile)
 router.route("/watchHistory").get(verifyJWT , getUserWatchHistory)
+router.route("/watchHistory").delete(verifyJWT , clearWatchHistory)
+router.route("/watchHistory/:videoId").post(verifyJWT , addVideoToWatchHistory)
+router.route("/watchHistory/:videoId").delete(verifyJWT , removeVideoFromWatchHistory)
 
 export default router
