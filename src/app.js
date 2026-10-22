@@ -19,12 +19,14 @@ app.use(cookieParser())
 
 // Routes import
 import userRoutes from "./routes/user.routes.js"
+import videoRoutes from "./routes/video.routes.js"
 import healthcheckRoutes from "./routes/healthcheck.routes.js"
 
 // Routes declaration
 app.use("/health", healthcheckRoutes)
 app.use("/api/v1/healthcheck", healthcheckRoutes)
 app.use("/api/v1/users",userRoutes)
+app.use("/api/v1/videos",videoRoutes)
 
 // Global error-handling middleware — must have exactly 4 params for Express to treat it as an error handler
 // eslint-disable-next-line no-unused-vars
