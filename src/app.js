@@ -2,6 +2,7 @@ import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import { requestLogger } from "./middlewares/logger.middleware.js"
+import { generalLimiter, authLimiter, uploadLimiter } from "./middlewares/rateLimiter.middleware.js"
 
 const app=express()
 
@@ -11,6 +12,8 @@ app.use(cors({
 }))
 
 app.use(requestLogger)
+// Apply global rate limiting to all requests
+app.use(generalLimiter)
 app.use(express.json({limit:"16kb"}))
 app.use(express.urlencoded({extended:true,limit:"16kb"}))
 app.use(express.static("public"))
@@ -31,8 +34,10 @@ import healthcheckRoutes from "./routes/healthcheck.routes.js"
 // Routes declaration
 app.use("/health", healthcheckRoutes)
 app.use("/api/v1/healthcheck", healthcheckRoutes)
-app.use("/api/v1/users",userRoutes)
-app.use("/api/v1/videos",videoRoutes)
+// Auth routes get a stricter rate limit to defend against brute-force attacks
+app.use("/api/v1/users", authLimiter, userRoutes)
+// Video upload is resource-heavy, so it gets a separate hourly limit
+app.use("/api/v1/videos", uploadLimiter, videoRoutes)
 app.use("/api/v1/comments",commentRoutes)
 app.use("/api/v1/likes",likeRoutes)
 app.use("/api/v1/subscriptions",subscriptionRoutes)

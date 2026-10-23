@@ -58,8 +58,9 @@ const getVideoComments = asyncHandler(async (req, res) => {
     ])
 
     const options = {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10)
+        page: Math.max(1, parseInt(page, 10)),
+        // Cap limit at 50 to prevent clients requesting huge result sets
+        limit: Math.min(50, Math.max(1, parseInt(limit, 10)))
     }
 
     const comments = await Comments.aggregatePaginate(commentsAggregate, options)
