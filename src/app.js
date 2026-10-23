@@ -12,7 +12,7 @@ app.use(cors({
 }))
 
 app.use(requestLogger)
-// Apply global rate limiting to all requests
+// Global rate limiter
 app.use(generalLimiter)
 app.use(express.json({limit:"16kb"}))
 app.use(express.urlencoded({extended:true,limit:"16kb"}))
@@ -34,9 +34,9 @@ import healthcheckRoutes from "./routes/healthcheck.routes.js"
 // Routes declaration
 app.use("/health", healthcheckRoutes)
 app.use("/api/v1/healthcheck", healthcheckRoutes)
-// Auth routes get a stricter rate limit to defend against brute-force attacks
+// User routes with auth rate limiter
 app.use("/api/v1/users", authLimiter, userRoutes)
-// Video upload is resource-heavy, so it gets a separate hourly limit
+// Video routes with upload rate limiter
 app.use("/api/v1/videos", uploadLimiter, videoRoutes)
 app.use("/api/v1/comments",commentRoutes)
 app.use("/api/v1/likes",likeRoutes)
@@ -45,7 +45,7 @@ app.use("/api/v1/playlist",playlistRoutes)
 app.use("/api/v1/tweets",tweetRoutes)
 app.use("/api/v1/dashboard",dashboardRoutes)
 
-// Global error-handling middleware — must have exactly 4 params for Express to treat it as an error handler
+// Global error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500

@@ -9,7 +9,7 @@ import mongoose from "mongoose";
 const getAllVideos = asyncHandler(async(req,res) =>{
     const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc", userId } = req.query
 
-    // Whitelist sortBy to prevent field-injection (user sorting by "password", "refreshTokens", etc.)
+    // Validate sortBy against allowed fields
     const allowedSortFields = ["createdAt", "views", "duration", "title"]
     if (!allowedSortFields.includes(sortBy)) {
         throw new ApiErrors(400, `Invalid sortBy field. Allowed: ${allowedSortFields.join(", ")}`)
@@ -85,7 +85,7 @@ const getAllVideos = asyncHandler(async(req,res) =>{
 
     const options = {
         page: Math.max(1, parseInt(page, 10)),
-        // Cap limit at 50 to prevent clients requesting thousands of results at once
+        // Maximum 50 videos per page
         limit: Math.min(50, Math.max(1, parseInt(limit, 10)))
     }
 
@@ -157,7 +157,7 @@ const getVideoById = asyncHandler(async(req,res) =>{
         throw new ApiErrors(400,"Invalid Video ID")
     }
 
-    // Only increment view count if the video is published — prevents view inflation on drafts
+    // Increment video views
     await Video.findByIdAndUpdate(
         videoId,
         {
@@ -166,7 +166,6 @@ const getVideoById = asyncHandler(async(req,res) =>{
             }
         },
         {
-            // Only update if isPublished is true
             new: true
         }
     )

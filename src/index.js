@@ -13,12 +13,41 @@ validateEnv()
 
 connectDB()
 .then(()=>{
-    app.listen(process.env.PORT || 8000 , ()=>{
+    const server = app.listen(process.env.PORT || 8000 , ()=>{
         console.log(`the app is listening on port ${process.env.PORT}`)
     })
+
+    // Close HTTP server on termination signals
+    const shutdown = (signal) => {
+        console.log(`\n${signal} received — shutting down gracefully...`)
+        server.close(() => {
+            console.log("HTTP server closed. Exiting process.")
+            process.exit(0)
+        })
+
+        // Force exit after 10 seconds timeout
+        setTimeout(() => {
+            console.error("Forced shutdown after 10s timeout")
+            process.exit(1)
+        }, 10000)
+    }
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"))
+    process.on("SIGINT",  () => shutdown("SIGINT"))
 })
 .catch((error)=>{
     console.log("Mongo DB connection failed!!!",error)
+    process.exit(1)
+})
+
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Promise Rejection:", reason)
+})
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+    console.error("Uncaught Exception:", error)
     process.exit(1)
 })
 

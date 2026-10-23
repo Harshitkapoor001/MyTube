@@ -59,7 +59,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
     const options = {
         page: Math.max(1, parseInt(page, 10)),
-        // Cap limit at 50 to prevent clients requesting huge result sets
+        // Maximum 50 comments per page
         limit: Math.min(50, Math.max(1, parseInt(limit, 10)))
     }
 

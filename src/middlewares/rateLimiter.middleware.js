@@ -1,8 +1,8 @@
 import rateLimit from "express-rate-limit"
 
-// Strict limiter for auth routes — prevents brute-force attacks on login/register
+// Auth route rate limiter (max 20 requests per 15 minutes)
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 20,
     message: {
         statusCode: 429,
@@ -11,11 +11,11 @@ const authLimiter = rateLimit({
         data: null,
         errors: []
     },
-    standardHeaders: true, // Return rate limit info in RateLimit-* headers
+    standardHeaders: true,
     legacyHeaders: false
 })
 
-// General API limiter — applied globally to all routes
+// General API rate limiter (max 300 requests per 15 minutes)
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 300,
@@ -30,7 +30,7 @@ const generalLimiter = rateLimit({
     legacyHeaders: false
 })
 
-// Upload limiter — file upload is heavy, limit it more aggressively
+// Upload route rate limiter (max 20 uploads per hour)
 const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 20,
