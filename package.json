@@ -12,7 +12,15 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
+    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
+    "start": "node src/index.js",
+    "lint": "prettier --check \"src/**/*.js\"",
+    "format": "prettier --write \"src/**/*.js\"",
+    "seed": "node src/scripts/seedData.js --confirm",
+    "seed:clean": "node src/scripts/cleanSeedData.js --confirm",
+    "test:api": "node src/scripts/testEndpoints.js",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",

@@ -1,9 +1,11 @@
 # Dependencies
 node_modules/
+frontend/dist/
 
 # Environment variables / secrets
 .env
 .env.*
+!.env.example
 
 # Uploaded temporary files (Multer staging directory)
 public/temp/
@@ -17,3 +19,5 @@ npm-debug.log*
 
 #Documentation
 /docs
+
+.env.example

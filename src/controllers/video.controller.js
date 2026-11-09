@@ -157,9 +157,9 @@ const getVideoById = asyncHandler(async(req,res) =>{
         throw new ApiErrors(400,"Invalid Video ID")
     }
 
-    // Increment video views
-    await Video.findByIdAndUpdate(
-        videoId,
+    // Increment video views for published videos
+    await Video.findOneAndUpdate(
+        { _id: videoId, isPublished: true },
         {
             $inc:{
                 views: 1

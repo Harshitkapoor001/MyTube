@@ -46,11 +46,14 @@ const userSchema=new Schema({
 },{timestamps:true})
 
 
-// Hash the password before saving — only runs if the password field was actually modified
-userSchema.pre("save",async function(next){
-    if(!this.isModified("password")) return next();
-    this.password = await bcrypt.hash(this.password,10)
-    next()
+// Hash password before saving
+userSchema.pre("save", async function(next){
+    if(!this.isModified("password")) {
+        if (typeof next === "function") return next();
+        return;
+    }
+    this.password = await bcrypt.hash(this.password, 10);
+    if (typeof next === "function") next();
 })
 
 userSchema.methods.isPasswordCorrect= async function(password) {
