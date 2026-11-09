@@ -1,16 +1,33 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(
+  /\/+$/,
+  ""
+);
+const API_BASE = configuredApiBase
+  ? configuredApiBase.endsWith("/api/v1")
+    ? configuredApiBase
+    : configuredApiBase.endsWith("/api")
+      ? `${configuredApiBase}/v1`
+      : `${configuredApiBase}/api/v1`
+  : "/api/v1";
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}/api/v1${path}`, {
-    credentials: "include",
-    ...options,
-    headers: {
-      ...(options.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      ...options.headers,
-    },
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
+      ...options,
+      headers: {
+        ...(options.body != null && !(options.body instanceof FormData)
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the MyTube API. Check VITE_API_BASE_URL and the backend CORS_ORIGIN setting."
+    );
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.success === false) {
     if (
@@ -18,7 +35,7 @@ async function request(path, options = {}) {
       !options._retried &&
       path !== "/users/refresh_token"
     ) {
-      const refreshed = await fetch(`${API_BASE}/api/v1/users/refresh_token`, {
+      const refreshed = await fetch(`${API_BASE}/users/refresh_token`, {
         method: "POST",
         credentials: "include",
       }).catch(() => null);
@@ -63,7 +80,7 @@ export const api = {
   upload: (form, onProgress) =>
     new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${API_BASE}/api/v1/videos`);
+      xhr.open("POST", `${API_BASE}/videos`);
       xhr.withCredentials = true;
       xhr.upload.onprogress = (event) =>
         event.lengthComputable &&
